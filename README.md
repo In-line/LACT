@@ -1,184 +1,339 @@
-# Linux AMDGPU Control Application
+# Linux GPU Control Application
+<a href="https://translate.fedoraproject.org/engage/lact/">
+<img src="https://translate.fedoraproject.org/widget/lact/svg-badge.svg" alt="Translation status" />
+</a>
 
-<img src="res/io.github.lact-linux.png" alt="icon" width="100"/>
+<img src="res/io.github.ilya_zlobintsev.LACT.png" alt="icon" width="100"/>
 
-This application allows you to control your AMD GPU on a Linux system.
+This application allows you to control your AMD, Nvidia or Intel GPU on a Linux
+system.
 
-| GPU info                                     | Overclocking                                 | Fan control                                 |
-|----------------------------------------------|----------------------------------------------|---------------------------------------------|
-|![image](https://i.imgur.com/gur90cK.png)|![image](https://i.imgur.com/BAL3MgC.png)|![image](https://i.imgur.com/VsAVdOR.png)|
+| GPU info                          | Overclocking                      | Fan control                       |
+| ----------------------------------| ----------------------------------| ----------------------------------|
+| ![image](./res/screenshots/1.png) | ![image](./res/screenshots/2.png) | ![image](./res/screenshots/3.png) |
+| Software info                     | Historical data                   |                                   |
+| ![image](./res/screenshots/4.png) | ![image](./res/screenshots/5.png) |                                   |
 
-Current features:
+### Features:
 
-- Viewing information about the GPU
-- Power/thermals monitoring
-- Fan curve control
-- Overclocking (GPU/VRAM clockspeed, voltage)
-- Power states configuration
+- #### Detailed GPU information reporting
+  - Name and manufcaturer
+  - VBIOS info
+  - VRAM info (Type/Manufacturer/Bus)
+  - Hardware unit info (CUs/SMs/EUs, ROP count)
+  - Resizable BAR status
+  - Vulkan features and extensions
+- #### Monitoring
+  - Configurable historical charts for power/thermals/frequency
+  - Throttling info
+  - Data CSV export
+- #### Power configuration
+  - Power cap
+  - Power states (AMD only)
+- #### Thermals configuration
+  - Custom fan curves (AMD/Nvidia)
+  - GPU firmware thermal options such as thermal and acoustic target/limit (AMD RDNA3+ only)
+- #### Overclocking
+  - GPU/VRAM clocks configuration
+  - GPU undervolting (via voltage offset on AMD, [indirectly](https://github.com/ilya-zlobintsev/LACT/wiki/Frequently-asked-questions#how-to-undervolt-nvidia-gpus) on Nvidia)
+- #### Settings profiles
+  - Automatic profile activation based on running processes or gamemode status
+
+GPU configuration is handled by a system service that does not depend on a graphical session (Wayland/X11).
+
+The service can also be used standalone with a config file, for example in headless scenarios.
+
+# Quick links
+
+- [Installation](#installation)
+- [Hardware support](https://github.com/ilya-zlobintsev/LACT/wiki/Hardware-Support)
+- [Frequently asked questions](https://github.com/ilya-zlobintsev/LACT/wiki/Frequently-asked-questions)
+- [Enable overclocking on AMD](https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD))
+- [Config file reference](./docs/CONFIG.md)
+- [API](./docs/API.md)
+- [Power profiles daemon note](#power-profiles-daemon-note)
+- [Recovery from a bad overclock](https://github.com/ilya-zlobintsev/LACT/wiki/Recovering-from-a-bad-overclock)
+- [Contribute translations](#localization)
+- [Support the project](#support-the-project)
 
 # Installation
 
-- Arch Linux: Install the [AUR Package](https://aur.archlinux.org/packages/lact/) (or the -git version)
-- Debian/Ubuntu/Derivatives: Download a .deb from [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
+- Arch Linux: Install the package from official repositories: `pacman -S lact`
+  (or `lact-git` from AUR for development builds).
+- Debian/Ubuntu/Derivatives: Download a .deb from
+  [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
-  It is only available on Debian 12+ and Ubuntu 22.04+ as older versions don't ship gtk4.
-- Fedora: an RPM is available in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
-- Gentoo: Available in [GURU](https://github.com/gentoo/guru/tree/master/sys-apps/lact).
-- OpenSUSE: an RPM is available in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
+  It is only available on Debian 12+ and Ubuntu 22.04+ as older versions don't
+  ship gtk4.
+- Fedora: use the
+  [Copr repository](https://copr.fedorainfracloud.org/coprs/ilyaz/LACT/), or
+  download an RPM from
+  [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
+- Bazzite: Use the Flatpak below.
 
-  Only tumbleweed is supported as leap does not have the required dependencies in the repos.
-- NixOS: There is a package available on the [unstable channel](https://search.nixos.org/packages?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=lact)
-- Otherwise, build from source.
+  This helper installs the Flatpak version and automatically adds the AMD
+  overclocking boot option.
+- Gentoo: Available in
+  [GURU](https://github.com/gentoo/guru/tree/master/sys-apps/lact).
+- OpenSUSE: an RPM is available in
+  [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
 
-**Why is there no AppImage/Flatpak/other universal format?**
-See [here](./pkg/README.md).
+  Only tumbleweed is supported as leap does not have the required dependencies
+  in the repos.
+- NixOS: There is a package available in
+  [nixpkgs](https://search.nixos.org/packages?channel=24.05&from=0&size=50&sort=relevance&type=packages&query=lact)
+- Flatpak (universal): Available on [Flathub](https://flathub.org/apps/io.github.ilya_zlobintsev.LACT) and in [releases](https://github.com/ilya-zlobintsev/LACT/releases/).
+
+  See the [Flatpak documentation](./flatpak/README.md) for setup notes.
+- Build from source.
+
+Note: Nvidia support requires the Nvidia proprietary driver with CUDA libraries
+installed.
+
+## Development builds
+
+To get latest fixes or features that have not yet been released in a stable
+version, there are packages built from the latest commit that you can install
+from the
+[test release](https://github.com/ilya-zlobintsev/LACT/releases/tag/test-build)
+or using the `lact-git` AUR package on Arch-based distros.
+
+Note: the date that GitHub shows next to the test release is not when the packages were built,
+the actual date is specified next to the attached package files.
 
 # Usage
 
-Enable and start the service (otherwise you won't be able to change any settings):
+Enable and start the service (otherwise you won't be able to change any
+settings):
+
 ```
 sudo systemctl enable --now lactd
 ```
+
 You can now use the GUI to change settings and view information.
 
 # Hardware support
 
-LACT for the most part does not implement features on a per-generation basis, rather it exposes the functionality that is available in the driver for the current system.
-However the following table shows what functionality can be expected for a given generation.
-
-- **Supported** - the functionality is known to work
-- **Limited** - the functionality is known to work, but has certain limitations
-- **Untested** - the functionality has not been confirmed to work, but it should
-- **Unknown** - the functionality has not been confirmed to work, and it is unknown if it does
-- **Unsupported** - the functionality is known to not work
-
-| Generation                          | Clocks configuration | Power limit | Power states | Fan control | Notes                                             |
-|-------------------------------------|----------------------|-------------|--------------|-------------|---------------------------------------------------|
-| Southern Islands (HD 7000)          | Unsupported          | Unknown     | Unknown      | Untested    | Requires the `amdgpu.si_support=1` kernel option  |
-| Sea Islands (R7/R9 200)             | Unsupported          | Unknown     | Untested     | Untested    | Requires the `amdgpu.cik_support=1` kernel option |
-| Volcanic Islands (R7/R9 300)        | Unsupported          | Unknown     | Untested     | Untested    |                                                   |
-| Arctic Islands/Polaris (RX 400-500) | Supported            | Supported   | Supported    | Supported   |                                                   |
-| Vega                                | Supported            | Supported   | Supported    | Supported   |                                                   |
-| RDNA1 (RX 5000)                     | Supported            | Supported   | Supported    | Supported   |                                                   |
-| RDNA2 (RX 6000)                     | Supported            | Supported   | Supported    | Supported   |                                                   |
-| RDNA3 (RX 7000)                     | Supported            | Limited     | Supported    | Limited     | There is an unconfigurable temperature threshold below which the fan does not get turned on, even with a custom curve. The power cap is also sometimes lower than it should be. Requires kernel 6.7+. See [#255](https://github.com/ilya-zlobintsev/LACT/issues/255) for more info.   | 
-
-GPUs not listed here will still work, but might not have full functionality available.
-Monitoring/system info will be available everywhere. Integrated GPUs might also only have basic configuration available.
+See the
+[Wiki page](https://github.com/ilya-zlobintsev/LACT/wiki/Hardware-Support)
 
 # Configuration
 
-There is a configuration file available in `/etc/lact/config.yaml`. Most of the settings are accessible through the GUI, but some of them may be useful to be edited manually (like `admin_groups` to specify who has access to the daemon)
+There is a configuration file available in `/etc/lact/config.yaml`. Most of the
+settings are accessible through the GUI, but some of them may be useful to be
+edited manually (like `admin_group` and `admin_user` to specify who has access
+to the daemon)
+
+See [CONFIG.md](./docs/CONFIG.md) for more information.
 
 **Socket permissions setup:**
 
-By default, LACT uses either ether the `wheel` or `sudo` group (whichever is available) for the ownership of the unix socket that the GUI needs to connect to.
+By default, LACT uses either ether the `wheel` or `sudo` group (whichever is
+available) for the ownership of the unix socket that the GUI needs to connect
+to.
 
-On most configurations (such as the default setup on Arch-based, most Debian-based or Fedora systems) you do not need to do anything.
+On most desktop configurations (such as the default setup on Arch-based, most
+Debian-based or Fedora systems) this includes the default user, so you do not
+need to configure this.
 
-However, some systems may have different user configuration. In particular, this has been reported to be a problem on OpenSUSE.
+However, some systems may have different user configuration. In particular, this
+has been reported to be a problem on OpenSUSE.
 
-To fix socket permissions in such configurations, edit `/etc/lact/config.yaml` and add your username or group as the first entry in `admin_groups` under `daemon`, and restart the service (`sudo systemctl restart lactd`).
+To fix socket permissions in such configurations, edit `/etc/lact/config.yaml`
+and under the `daemon` section either:
 
-# Overclocking
+- Set `admin_user` to your username
+- Set `admin_group` to a group that your user is a part of Then restart the
+  service (`sudo systemctl restart lactd`).
 
-The overclocking functionality is disabled by default in the driver. There are two ways to enable it:
-- By using the "enable overclocking" option in the LACT GUI. This will create a file in `/etc/modprobe.d` that enables the required driver options. This is the easiest way and it should work for most people.
+# Overclocking (AMD)
 
-  **Note:** This will attempt to automatically regenerate the initramfs to include the new settings. It does not cover all possible distro combinations. If you've enabled overclocking in LACT but it still doesn't work fter a reboot,
-  you might need to check your distro's configuration to make sure the initramfs was updated. Updating the kernel version is a guaranteed way to trigger an initramfs update.
-- Specifying a boot parameter. You can manually specify the `amdgpu.ppfeaturemask=0xffffffff` kernel parameter in your bootloader to enable overclocking. See the [ArchWiki](https://wiki.archlinux.org/title/AMDGPU#Boot_parameter) for more details.
+Some functionality requires enabling an option in the amdgpu driver, see the
+[wiki page](https://github.com/ilya-zlobintsev/LACT/wiki/Overclocking-(AMD)) for
+more information.
+
+## Power profiles daemon note!
+
+If you are using `power-profiles-daemon` (which is installed by default on many
+distributions), by default it may override the amdgpu performance level setting
+according to its own profile.
+
+When using LACT 0.7.5+ and power-profiles-daemon 0.30+, LACT will try to connect to power-profiles-daemon 
+and automatically disable the conflicting amdgpu action in ppd to avoid this conflict.
+
+If running older versions, you can resolve this manually by creating a file at
+`/etc/systemd/system/power-profiles-daemon.service.d/override.conf` with the
+following contents:
+
+```
+[Service]
+ExecStart=
+ExecStart=/usr/libexec/power-profiles-daemon --block-action=amdgpu_dpm
+```
+
+Note: the `/usr/libexec` path might be different on your system, check it in
+`systemctl status power-profiles-daemon`
+
+See https://github.com/ilya-zlobintsev/LACT/issues/370 for more information.
 
 # Suspend/Resume
 
-As some of the GPU settings may get reset when suspending the system, LACT will reload them on system resume. This may not work on distributions which don't use systemd, as it relies on the `org.freedesktop.login2` DBus interface.
+As some of the GPU settings may get reset when suspending the system, LACT will
+reload them on system resume. This may not work on distributions which don't use
+systemd, as it relies on the `org.freedesktop.login2` DBus interface.
 
 # Building from source
 
 Dependencies:
-- rust
-- gtk4
+
+- rust 1.76+
+- gtk 4.6+
 - git
 - pkg-config
+- clang
 - make
 - hwdata
 - libdrm
-- blueprint-compiler 0.10.0 or higher (Ubuntu 22.04 in particular ships an older version in the repos, you can manually download a [deb file](http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.10.0-3_all.deb) of a new version)
+- vulkan-tools
+- ocl-icd
+
+Command to install all dependencies:
+
+- Fedora:
+  `sudo dnf install rust cargo make git clang gtk4-devel libdrm-devel vulkan-tools OpenCL-ICD-Loader-devel`
+- Arch:
+  `sudo pacman -S --needed base-devel git clang make rust gtk4 hwdata vulkan-tools ocl-icd`
 
 Steps:
+
 - `git clone https://github.com/ilya-zlobintsev/LACT && cd LACT`
 - `make`
 - `sudo make install`
 
-It's also possible to build LACT without some of the features by using cargo feature flags.
-This can be useful if some dependency is not available on your system, or is too old.
+It's possible to change which features LACT gets built with. To do so, replace
+the `make` command with the following variation:
 
-Build without DRM support (some GPU information will not be available):
-```
-cargo build --no-default-features -p lact --features=lact-gui
-```
+Headless build with no GUI:
 
-Minimal build (no GUI!):
 ```
-cargo build --no-default-features -p lact
+make build-release-headless
 ```
 
 Build GUI with libadwaita support:
+
 ```
 make build-release-libadwaita
 ```
 
-# API
+# Remote management
 
-There is an API available over a unix socket. See [here](API.md) for more information.
+It's possible to have the LACT daemon running on one machine, and then manage it
+remotely from another.
+
+This is disabled by default, as the TCP connection **does not have any
+authentication or encryption mechanism!** Make sure to only use it in trusted
+networks and/or set up appropriate firewall rules.
+
+To enable it, edit `/etc/lact/config.yaml` and add `tcp_listen_address` with
+your desired address and in the `daemon` section.
+
+Example:
+
+```yaml
+daemon:
+  tcp_listen_address: 0.0.0.0:12853
+  log_level: info
+  admin_group: wheel
+  disable_clocks_cleanup: false
+```
+
+After this restart the service (`sudo systemctl restart lactd`).
+
+To connect to a remote instance with the GUI, run it with
+`lact gui --tcp-address 192.168.1.10:12853`.
 
 # CLI
 
 There is also a cli available.
 
-- List system GPUs: 
+- List system GPUs:
 
-    `lact cli list-gpus`
+  `lact cli list-gpus`
 
-    Example output:
+  Example output:
 
-    ```
-    1002:687F-1043:0555-0000:0b:00.0 (Vega 10 XL/XT [Radeon RX Vega 56/64])
-    ```
+  ```
+  10DE:2704-1462:5110-0000:09:00.0 (AD103 [GeForce RTX 4080])
+  ```
 - Getting GPU information:
 
-    `lact cli info`
+  `lact cli info`
 
-    Example output:
+  Example output:
 
-    ```
-    lact cli info
-    GPU Vendor: Advanced Micro Devices, Inc. [AMD/ATI]
-    GPU Model: Vega 10 XL/XT [Radeon RX Vega 56/64]
-    Driver in use: amdgpu
-    VBIOS version: 115-D050PIL-100
-    Link: LinkInfo { current_width: Some("16"), current_speed: Some("8.0 GT/s PCIe"), max_width: Some("16"), max_speed: Some("8.0 GT/s PCIe") }
-    ```
-    
-The functionality of the CLI is quite limited. If you want to integrate LACT with some application/script, you should use the [API](API.md) instead.
+  ```
+  $ lact cli info
+  GPU 10DE:2704-1462:5110-0000:09:00.0:
+  =====================================
+  GPU Model: NVIDIA GeForce RTX 4080 (0x10DE:0x2704)
+  Card Manufacturer: Micro-Star International Co., Ltd. [MSI] (0x1462)
+  Card Model: Unknown (0x5110)
+  Driver Used: nvidia 570.124.04
+  VBIOS Version: 95.03.1E.00.60
+  VRAM Size: 16376 MiB
+  GPU Family: Ada
+  Cuda Cores: 9728
+  SM Count: 76
+  ROP Count: 112 (14 * 8)
+  VRAM Type: GDDR6x
+  VRAM Manufacturer: Micron
+  L2 Cache: 65536 KiB
+  Resizeable bar: Enabled
+  CPU Accessible VRAM: 16384
+  Link Speed: 8 GT/s PCIe gen 3 x8
+  ```
+
+The functionality of the CLI is quite limited. If you want to integrate LACT
+with some application/script, you should use the [API](API.md) instead.
 
 # Reporting issues
- 
+
 When reporting issues, please include your system info and GPU model.
 
-If you're having an issue with changing the GPU's configuration, it's highly recommended to include a debug snapshot in the bug report.
-You can generate one using the option in the dropdown menu:
+If you're having an issue with changing the GPU's configuration, it's highly
+recommended to include a debug snapshot in the bug report. You can generate one
+using the option in the dropdown menu:
 
 ![image](https://github.com/ilya-zlobintsev/LACT/assets/22796665/36dda5e3-981b-47e7-914e-6e29f30616b4)
 
-The snapshot is an archive which includes the SysFS that LACT uses to interact with the GPU.
- 
-If there's a crash, run `lact gui` from the command line to get GUI logs, check daemon logs in `journalctl -u lactd` for errors, 
-and see `dmesg` for kernel logs that might include information about driver and system issues.
+The snapshot is an archive which includes the SysFS that LACT uses to interact
+with the GPU.
+
+If there's a crash, run `lact gui` from the command line to get GUI logs, check
+daemon logs in `journalctl -u lactd` for errors, and see `dmesg` for kernel logs
+that might include information about driver and system issues.
+
+# Localization
+
+You can contribute translations to LACT using [Weblate](https://translate.fedoraproject.org/engage/lact/).
+
+# Support the project
+
+If you wish to support the project, you can do so via Patreon:
+https://www.patreon.com/IlyaZlobintsev
+
+Or using cryptocurrency:
+- BTC: `12FuTXZzd5peGb7QfoRkXaLnbJ1DNVW4pP`
+- ETH: `0x80875173316aa6317641bfbc50644e7ca74d6b6d`
+- XMR: `42E93NZXM7STBUsnMRGNyxKryFVgpHKNP6aza94C5hn17j2W7zUnFHe7ASQzB3KorYYnsaVzWUyHHVYfcTLQRtB63qkv5jE`
 
 # Other tools
 
 Here's a list of other useful tools for AMD GPUs on Linux:
-- [CoreCtrl](https://gitlab.com/corectrl/corectrl) - direct alternative to LACT, provides similar functionality in addition to CPU configuration with a Qt UI
-- [amdgpu_top](https://github.com/Umio-Yasuno/amdgpu_top) - tool for detailed real-time statistics on AMD GPUs
-- [Tuxclocker](https://github.com/Lurkki14/tuxclocker) - Qt overclocking tool, has support for AMD GPUs
+
+- [CoreCtrl](https://gitlab.com/corectrl/corectrl) - direct alternative to LACT,
+  provides similar functionality in addition to CPU configuration with a Qt UI
+- [amdgpu_top](https://github.com/Umio-Yasuno/amdgpu_top) - tool for detailed
+  real-time statistics on AMD GPUs
+- [Tuxclocker](https://github.com/Lurkki14/tuxclocker) - Qt overclocking tool,
+  has support for AMD GPUs

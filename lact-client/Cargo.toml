@@ -1,6 +1,6 @@
 [package]
 name = "lact-client"
-version = "0.5.4"
+version = "0.8.2"
 edition = "2021"
 
 [dependencies]
@@ -11,5 +11,6 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-
+tokio = { workspace = true, features = ["net", "sync"] }
+futures = { workspace = true }
 nix = { workspace = true }

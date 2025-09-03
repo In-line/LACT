@@ -1,5 +1,7 @@
-use crate::{Pong, Request, Response};
+use crate::{FanControlMode, FanOptions, PmfwOptions, Pong, Request, Response};
+use anyhow::anyhow;
 use serde_json::json;
+use std::collections::BTreeMap;
 
 #[test]
 fn ping_requset() {
@@ -35,11 +37,52 @@ fn controllers_response() {
 #[test]
 fn error_response() {
     let expected_response = json!({
-        "status": "error",
-        "data": "my super error"
+        "data": {
+            "description": "third deeper context",
+            "source": {
+                "description": "second context",
+                "source": {
+                    "description": "first error",
+                    "source": null
+                }
+            }
+        },
+        "status": "error"
     });
 
-    let response = Response::<()>::Error("my super error".to_owned());
+    let error = anyhow!("first error")
+        .context("second context")
+        .context(anyhow!("third deeper context"));
+
+    let response = Response::<()>::from(error);
 
     assert_eq!(serde_json::to_value(response).unwrap(), expected_response);
+}
+
+#[test]
+fn set_fan_clocks() {
+    let value = r#"{
+        "command": "set_fan_control",
+        "args": {
+            "id": "123",
+            "enabled": true,
+            "mode": "curve",
+            "curve": {
+                "30": 30.0,
+                "50": 50.0
+            }
+        }
+    }"#;
+    let request: Request = serde_json::from_str(value).unwrap();
+    let expected_request = Request::SetFanControl(FanOptions {
+        id: "123",
+        enabled: true,
+        mode: Some(FanControlMode::Curve),
+        static_speed: None,
+        curve: Some(BTreeMap::from([(30, 30.0), (50, 50.0)])),
+        pmfw: PmfwOptions::default(),
+        spindown_delay_ms: None,
+        change_threshold: None,
+    });
+    assert_eq!(expected_request, request);
 }

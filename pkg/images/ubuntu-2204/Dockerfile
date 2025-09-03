@@ -1,1 +1,1 @@
-FROM ubuntu:jammy
+FROM quay.io/lib/ubuntu:22.04

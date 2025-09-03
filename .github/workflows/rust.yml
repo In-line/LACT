@@ -1,8 +1,6 @@
 name: Rust
 
 on:
-  push:
-    branches: [master]
   pull_request:
     branches: [master]
 
@@ -11,28 +9,45 @@ env:
 
 jobs:
   build-test:
+    runs-on: ubuntu-24.04
     if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
-    runs-on: ubuntu-22.04
-
     steps:
-      - uses: actions/checkout@v2
-      - name: Update repos
-        run: sudo apt update
-      - name: Install dependencies
-        run: sudo apt install libgtk-4-dev pkg-config libvulkan-dev libdrm-dev
-      - name: Install blueprint-compiler
-        run: curl -o /tmp/blueprint-compiler.deb http://de.archive.ubuntu.com/ubuntu/pool/universe/b/blueprint-compiler/blueprint-compiler_0.10.0-3_all.deb && sudo apt install -y /tmp/blueprint-compiler.deb
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: ./.github/actions/setup-environment
       - name: Build
         run: cargo build
       - name: Run tests
-        run: cargo test --verbose --no-default-features
+        run: cargo test --verbose
 
   check-format:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
     steps:
-      - uses: actions/checkout@v2
-      - name: install rustfmt
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - name: Install rustfmt
         run: rustup component add rustfmt
       - name: Check formatting
         run: cargo fmt -- --check
+
+  check-clippy:
+    runs-on: ubuntu-24.04
+    if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+    steps:
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: ./.github/actions/setup-environment
+      - name: Install clippy
+        run: rustup component add clippy
+      - name: Run clippy
+        run: cargo clippy --verbose
+
+  check-audit:
+    runs-on: ubuntu-24.04
+    if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+    steps:
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: ./.github/actions/setup-environment
+      - name: Run cargo audit
+        uses: simonhyll/cargo-audit@v1
+        with:
+          fix: false
+          deny: true

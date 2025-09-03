@@ -1,9 +1,9 @@
 metadata:
   name: lact-headless
-  description: AMDGPU control utility
+  description: GPU control utility
   arch: x86_64
   license: MIT
-  version: 0.5.4
+  version: 0.8.2
   maintainer: ilya-zlobintsev
   url: https://github.com/ilya-zlobintsev/lact
   source:
@@ -11,24 +11,30 @@ metadata:
   provides: [ lact ]
   conflicts: [ lact, lact-libadwaita ]
   depends:
-    all: [ hwdata ]
-    debian-12+ubuntu-2204: [ libdrm-amdgpu1 ]
-    fedora-38+fedora-39: [ libdrm ]
-    arch: [ libdrm ]
-    opensuse-tumbleweed: [ libdrm ]
+    all: [ hwdata, vulkan-tools ]
+    debian-12+ubuntu-2204+ubuntu-2404: [ libdrm-amdgpu1, libdrm2, ocl-icd-opencl-dev ]
+    fedora-41+fedora-42+rhel-8+rhel-9: [ libdrm, libOpenCL.so.1 ]
+    arch: [ libdrm, ocl-icd ]
+    opensuse-tumbleweed: [ libdrm, libOpenCL.so.1 ]
   build_depends:
-    all: [ curl, make, clang, git ]
-    debian-12+ubuntu-2204: [ pkg-config, build-essential, libdrm-dev, dbus ]
-    fedora-38+fedora-39: [ gcc, libdrm-devel, dbus ]
-    arch: [ libdrm, dbus ]
-    opensuse-tumbleweed: [ libdrm-devel ]
+    all: [ curl, make, clang, git, vulkan-tools ]
+    debian-12+ubuntu-2204+ubuntu-2404: [ pkg-config, build-essential, libdrm-dev, dbus, ocl-icd-opencl-dev ]
+    fedora-41+fedora-42: [ gcc, libdrm-devel, dbus, OpenCL-ICD-Loader-devel ]
+    rhel-8+rhel-9: [ gcc, libdrm-devel, dbus, ocl-icd-devel ]
+    arch: [ libdrm, dbus, ocl-icd ]
+    opensuse-tumbleweed: [ libdrm-devel, ocl-icd-devel ]
   all_images: true
 env:
   RUSTUP_URL: https://sh.rustup.rs
 configure:
   steps:
     - cmd: curl -o /tmp/install_rust.sh $RUSTUP_URL
-    - cmd: sh /tmp/install_rust.sh -y --default-toolchain stable
+    - cmd: sh /tmp/install_rust.sh -y
+    - cmd: bash -c "source $HOME/.cargo/env && rustup toolchain install 1.85.1"
+    - cmd: bash -c "source $HOME/.cargo/env && rustup component add llvm-tools-preview"
+    - cmd: bash -c "source $HOME/.cargo/env && cargo install cargo-pgo"
+    - cmd: pacman -Syu --noconfirm
+      pkg: true
 build:
   steps:
     - cmd: bash -c "source $HOME/.cargo/env && cd LACT && make build-release-headless"
